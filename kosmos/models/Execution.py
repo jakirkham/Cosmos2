@@ -109,7 +109,7 @@ class Execution(Base):
             ex = session.query(Execution).filter_by(name=name).first()
             if ex:
                 old_id = ex.id
-                msg = 'Are you sure you want to delete the contents of`%s` and delete all sql records of %s?' % (
+                msg = "Are you sure you want to restart %s and deleting it's output directory and sql records?" % (
                     ex.output_dir, ex)
                 if prompt_confirm and not confirm(msg):
                     raise SystemExit('Quitting')

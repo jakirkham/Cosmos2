@@ -113,23 +113,22 @@ class Tool(object):
 
         return task
 
-    def cmd(self, i, o, s, **kwargs):
+    def cmd(self, i, o, **kwargs):
         """
         Constructs the preformatted command string.  The string will be .format()ed with the i,s,p dictionaries,
         and later, $OUT.outname  will be replaced with a TaskFile associated with the output name `outname`
 
         :param i: (dict who's values are lists) Input TaskFiles.
         :param o: (dict) Output TaskFiles.
-        :param s: (dict) Settings.
-        :param kwargs: (dict) Parameters.
-        :returns: (str|tuple(str,dict)) A preformatted command string, or a tuple of the former and a dict with extra values to use for
+        :param kwargs: (dict) Parameters.  Received from, in order of precedence, tags, parameters and settings.
+        :returns: (str|tuple(str,dict)) A pre-format()ed command string, or a tuple of the former and a dict with extra values to use for
             formatting
         """
         raise NotImplementedError("{0}.cmd is not implemented.".format(self.__class__.__name__))
 
     def generate_command(self, task):
         """
-
+        Generates a command for a task.  Parameters are generated using, in order of precedence, tags, parameters, settings
         """
         argspec = getargspec(self.cmd)
 
@@ -137,30 +136,33 @@ class Tool(object):
             if k not in argspec.args:
                 raise ToolValidationError('Parameter %s is not a part of the %s.cmd signature' % (k, self))
 
-        p = self.parameters.copy()
-
-        if {'inputs', 'outputs', 'settings'}.issubset(argspec.args):
+        if {'inputs', 'outputs'}.issubset(argspec.args):
             signature_type = 'A'
-        elif {'i', 'o', 's'}.issubset(argspec.args):
+        elif {'i', 'o'}.issubset(argspec.args):
             signature_type = 'B'
         else:
             raise ToolValidationError('Invalid %s.cmd signature'.format(self))
 
+        # set parameters to settings
+        p = {k: v for k, v in self.settings.items() if k in argspec.args}
 
-        # add tags to params
+        # update using parameters
+        p.update(self.parameters)
+
+        # update using tags
         p.update({k: v for k, v in task.tags.items() if k in argspec.args})
 
-        for l in ['i', 'o', 's', 'inputs', 'outputs', 'settings']:
+        for l in ['i', 'o', 'inputs', 'outputs']:
             if l in p.keys():
                 raise ToolValidationError("%s is a reserved name, and cannot be used as a tag keyword" % l)
 
         try:
             input_dict = {name: list(input_files) for name, input_files in groupby(task.input_files, lambda i: i.name)}
             if signature_type == 'A':
-                kwargs = dict(inputs=input_dict, outputs={o.name: o for o in task.output_files}, settings=self.settings,
+                kwargs = dict(inputs=input_dict, outputs={o.name: o for o in task.output_files},
                               **p)
             elif signature_type == 'B':
-                kwargs = dict(i=input_dict, o={o.name: o for o in task.output_files}, s=self.settings, **p)
+                kwargs = dict(i=input_dict, o={o.name: o for o in task.output_files}, **p)
             callargs = getcallargs(self.cmd, **kwargs)
         except TypeError:
             raise TypeError('Invalid parameters for {0}.cmd(): {1}'.format(self, kwargs.keys()))

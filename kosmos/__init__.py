@@ -46,10 +46,12 @@ def default_get_drmaa_native_specification(drm, task):
 
 
 class KosmosApp(object):
-    def __init__(self, flask_app, database_url, get_drmaa_native_specification=default_get_drmaa_native_specification,
+    def __init__(self, database_url, flask_app=None, get_drmaa_native_specification=default_get_drmaa_native_specification,
                  default_drm='local'):
         from .job.JobManager import JobManager
         #from .db import get_session
+        if flask_app is None:
+            flask_app = Flask(__name__)
         self.flask_app = flask_app
         from flask.ext.sqlalchemy import SQLAlchemy
 
